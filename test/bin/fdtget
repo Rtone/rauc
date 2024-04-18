@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# escape to bash-compatible variable assignment for saving pre-values
+for i in $FDTGET_VARS_PRE; do
+	eval $(echo $i | sed 's/\//__/g')
+done
+
+# Command line parsing
+while [[ $# > 0 ]]; do
+	if [ $1 = -t ]; then
+		shift
+	elif [ ! $fdt ]; then
+		fdt="$1"
+	elif [ ! $node ]; then
+		node="$1"
+	elif [ ! $property ]; then
+		property="$1"
+	else
+		echo "Error: must have an even number of arguments" >&2
+		exit 1
+	fi
+	shift
+done
+
+eval echo \$$(echo $node/$property | sed 's/\//__/g')
+
+exit 0

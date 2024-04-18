@@ -911,6 +911,236 @@ BOOT_B_LEFT=3\n\
 "));
 }
 
+/* Write content to state storage for autoboot.txt RAUC mock tool.
+ * Content should be similar to:
+ * "\
+ * [all]\n\
+ * tryboot_a_b=1\n\
+ * boot_partition=2\n\
+ * \n\
+ * [tryboot]\n\
+ * boot_partition=3\n\
+ * "
+ */
+static void test_raspberrypi_initialize_state(const gchar *ini)
+{
+	g_assert_true(g_file_set_contents(r_context()->config->autoboottxt_path, ini, -1, NULL));
+}
+
+/* Content written should identical to format described for
+ * test_raspberrypi_backend_initialize_state().
+ *
+ * Returns TRUE if mock tools state content equals desired content,
+ * FALSE otherwise
+ */
+static gboolean test_raspberrypi_post_state(const BootchooserFixture *fixture, const gchar *compare)
+{
+	g_autofree gchar *state_path = g_build_filename(fixture->tmpdir, "autoboot.txt", NULL);
+	g_autofree gchar *contents = NULL;
+
+	g_assert_true(g_file_get_contents(state_path, &contents, NULL, NULL));
+
+	if (g_strcmp0(contents, compare) != 0) {
+		g_print("Error: '%s' and '%s' differ\n", contents, compare);
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static void bootchooser_raspberrypi(BootchooserFixture *fixture,
+		gconstpointer user_data)
+{
+	RaucSlot *rootfs0 = NULL, *rootfs1 = NULL;
+	RaucSlot *primary = NULL;
+	gboolean good;
+
+	const gchar *cfg_file = "\
+[system]\n\
+compatible=FooCorp Super BarBazzer\n\
+bootloader=raspberrypi\n\
+autoboot-txt=autoboot.txt\n\
+mountprefix=/mnt/myrauc/\n\
+\n\
+[keyring]\n\
+path=/etc/rauc/keyring/\n\
+\n\
+[slot.firmware.0]\n\
+device=/dev/mmcblk0p2\n\
+type=vfat\n\
+parent=rootfs.0\n\
+\n\
+[slot.firmware.1]\n\
+device=/dev/mmcblk0p3\n\
+type=vfat\n\
+parent=rootfs.1\n\
+\n\
+[slot.rootfs.0]\n\
+device=/dev/mmcblk0p5\n\
+type=ext4\n\
+bootname=system0\n\
+\n\
+[slot.rootfs.1]\n\
+device=/dev/mmcblk0p6\n\
+type=ext4\n\
+bootname=system1\n";
+
+	gchar* pathname = write_tmp_file(fixture->tmpdir, "raspberrypi.conf", cfg_file, NULL);
+	g_assert_nonnull(pathname);
+
+	g_clear_pointer(&r_context_conf()->configpath, g_free);
+	r_context_conf()->configpath = pathname;
+	r_context();
+
+	rootfs0 = find_config_slot_by_name(r_context()->config, "rootfs.0");
+	g_assert_nonnull(rootfs0);
+	rootfs1 = find_config_slot_by_name(r_context()->config, "rootfs.1");
+	g_assert_nonnull(rootfs1);
+
+	/* the bootloader has booted normally; i.e. boot_partition number is the one set in section
+	 * [all] and the tryboot flag is unset */
+	write_tmp_file(fixture->tmpdir, "autoboot.txt", "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+", NULL);
+	g_assert_true(g_setenv("FDTGET_VARS_PRE", " \
+__chosen__bootloader__partition=2\n\
+__chosen__bootloader__tryboot=0\n\
+", TRUE));
+
+	/* check rootfs.0 is considered good */
+	g_assert_true(r_boot_get_state(rootfs0, &good, NULL));
+	g_assert_true(good);
+	/* check rootfs.1 is considered bad (i.e. not booted) */
+	g_assert_true(r_boot_get_state(rootfs1, &good, NULL));
+	g_assert_true(!good);
+
+	/* check rootfs.0 is considered as primary */
+	primary = r_boot_get_primary(NULL);
+	g_assert_nonnull(primary);
+	g_assert(primary == rootfs0);
+	g_assert(primary != rootfs1);
+
+	/* check rootfs.0 and rootfs.1 can be set to good */
+	g_assert_true(r_boot_set_state(rootfs0, TRUE, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
+	g_assert_true(r_boot_set_state(rootfs1, TRUE, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture,"\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=3\n\
+\n\
+[tryboot]\n\
+boot_partition=2\n\
+"));
+	test_raspberrypi_initialize_state("\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+");
+
+	/* check rootfs.0 and rootfs.1 can be set to primary */
+	g_assert_true(r_boot_set_primary(rootfs0, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
+	g_assert_true(r_boot_set_primary(rootfs1, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
+
+	/* the bootloader has not booted normally; i.e. boot_partition number is the one set in
+	 * section [tryboot] and the tryboot flag is set */
+	test_raspberrypi_initialize_state("\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+");
+	g_assert_true(g_setenv("FDTGET_VARS_PRE", " \
+__chosen__bootloader__partition=3\n\
+__chosen__bootloader__tryboot=1\n\
+", TRUE));
+
+	/* check rootfs.0 is considered good (i.e. not booted but tryboot) */
+	g_assert_true(r_boot_get_state(rootfs0, &good, NULL));
+	g_assert_true(good);
+	/* check rootfs.1 is considered good (i.e. booted) */
+	g_assert_true(r_boot_get_state(rootfs1, &good, NULL));
+	g_assert_true(good);
+
+	/* check rootfs.0 is considered as primary (i.e. not booted but tryboot) */
+	primary = r_boot_get_primary(NULL);
+	g_assert_nonnull(primary);
+	g_assert(primary == rootfs0);
+	g_assert(primary != rootfs1);
+
+	/* check rootfs.0 and rootfs.1 can be set to good */
+	g_assert_true(r_boot_set_state(rootfs0, TRUE, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
+	g_assert_true(r_boot_set_state(rootfs1, TRUE, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture,"\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=3\n\
+\n\
+[tryboot]\n\
+boot_partition=2\n\
+"));
+	test_raspberrypi_initialize_state("\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+");
+
+	/* check rootfs.0 and rootfs.1 can be set to primary */
+	g_assert_true(r_boot_set_primary(rootfs0, NULL));
+	g_assert_true(test_raspberrypi_post_state(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
+}
+
 static void bootchooser_efi(BootchooserFixture *fixture,
 		gconstpointer user_data)
 {
@@ -1225,6 +1455,10 @@ int main(int argc, char *argv[])
 
 	g_test_add("/bootchooser/uboot-asymmetric", BootchooserFixture, NULL,
 			bootchooser_fixture_set_up, bootchooser_uboot_asymmetric,
+			bootchooser_fixture_tear_down);
+
+	g_test_add("/bootchooser/raspberrypi", BootchooserFixture, NULL,
+			bootchooser_fixture_set_up, bootchooser_raspberrypi,
 			bootchooser_fixture_tear_down);
 
 	g_test_add("/bootchooser/efi", BootchooserFixture, NULL,

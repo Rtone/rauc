@@ -46,6 +46,9 @@ typedef struct {
 	gchar *system_bb_dtbpath;
 	gint boot_default_attempts;
 	gint boot_attempts_primary;
+	gchar *autoboottxt_path;
+	gchar *configtxt_path;
+	gchar *tryboottxt_path;
 	gchar *grubenv_path;
 	gchar *custom_bootloader_backend;
 	gboolean efi_use_bootnext;

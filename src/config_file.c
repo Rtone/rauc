@@ -800,6 +800,25 @@ gboolean load_config(const gchar *filename, RaucConfig **config, GError **error)
 	if (g_strcmp0(c->system_bootloader, "barebox") == 0) {
 		c->system_bb_statename = key_file_consume_string(key_file, "system", "barebox-statename", NULL);
 		c->system_bb_dtbpath = key_file_consume_string(key_file, "system", "barebox-dtbpath", NULL);
+	} else if (g_strcmp0(c->system_bootloader, "raspberrypi") == 0) {
+		c->autoboottxt_path = resolve_path_take(filename,
+				key_file_consume_string(key_file, "system", "autoboot-txt", NULL));
+		if (!c->autoboottxt_path) {
+			g_debug("No autoboot.txt path provided, using /boot/autoboot.txt as default");
+			c->autoboottxt_path = g_strdup("/boot/autoboot.txt");
+		}
+		c->configtxt_path = resolve_path_take(filename,
+				key_file_consume_string(key_file, "system", "config-txt", NULL));
+		if (!c->configtxt_path) {
+			g_debug("No config.txt path provided, using /boot/firmware/config.txt as default");
+			c->configtxt_path = g_strdup("/boot/firmware/config.txt");
+		}
+		c->tryboottxt_path = resolve_path_take(filename,
+				key_file_consume_string(key_file, "system", "tryboot-txt", NULL));
+		if (!c->configtxt_path) {
+			g_debug("No tryboot.txt path provided, using /boot/firmware/tryboot.txt as default");
+			c->configtxt_path = g_strdup("/boot/firmware/tryboot.txt");
+		}
 	} else if (g_strcmp0(c->system_bootloader, "grub") == 0) {
 		c->grubenv_path = resolve_path_take(filename,
 				key_file_consume_string(key_file, "system", "grubenv", NULL));
@@ -1270,6 +1289,9 @@ void free_config(RaucConfig *config)
 	g_free(config->store_path);
 	g_free(config->tmp_path);
 	g_free(config->casync_install_args);
+	g_free(config->autoboottxt_path);
+	g_free(config->configtxt_path);
+	g_free(config->tryboottxt_path);
 	g_free(config->grubenv_path);
 	g_free(config->data_directory);
 	g_free(config->statusfile_path);

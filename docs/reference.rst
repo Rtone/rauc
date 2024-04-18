@@ -2251,3 +2251,22 @@ EFI
   targets etc. It may also depend on the actual implementation if EFI variable
   writing is atomic or not.
   Thus make sure your EFI works as expected and required.
+
+Raspberry Pi
+~~~~~~~~~~~~
+
+:state bad:
+  Do nothing.
+  This behaves slightly different than the other implementations because we
+  avoid unecessary write to FAT filesystem.
+
+:state good:
+  Sets the slot to `[all]` if the slot is not the primary slot.
+  This behaves slightly different than the other implementations because we use
+  `tryboot` reboot-flag for allowing setting primary with an initial fallback
+  option.
+  Setting state good is then used to persist this.
+
+:primary:
+  Sets the `tryboot` reboot-flag if the slot is not the primary slot.
+  This will make the slot being booted upon next reboot only!

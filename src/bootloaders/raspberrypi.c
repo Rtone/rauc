@@ -253,6 +253,7 @@ static gboolean raspberrypi_set_other_persistent(RaucSlot *primary, RaucSlot *ot
 	gchar *filename;
 	gsize size;
 
+	g_return_val_if_fail(primary != other, FALSE);
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
 	filename = r_context()->config->raspberrypi_autoboottxt_path;
@@ -396,7 +397,7 @@ gboolean r_raspberrypi_set_state(RaucSlot *slot, gboolean good, GError **error)
 		return FALSE;
 	}
 
-	if ((slot != primary && good) || (slot == primary && !good)) {
+	if (slot != primary && good) {
 		if (!raspberrypi_set_other_persistent(primary, slot, &ierror)) {
 			g_propagate_prefixed_error(
 					error,

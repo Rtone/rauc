@@ -340,7 +340,7 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 
 /* We assume bootstate to be good if the slot is the booted slot or if the slot
  * is not the booted slot and the reboot flag is set; we assume bootstate to be
- * bad otherwise */
+ * bad otherwise. */
 gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 {
 	RaucSlot *booted;

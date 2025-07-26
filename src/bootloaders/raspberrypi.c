@@ -32,7 +32,7 @@ static int r_rename(const gchar *oldfilename, const char *newfilename)
 	return res;
 }
 
-static RaucSlot *raspberrypi_find_config_slot_by_boot_partition(RaucConfig *config, gint partition)
+static RaucSlot *raspberrypi_find_config_slot_by_bootloader_partition(RaucConfig *config, gint partition)
 {
 	g_autofree gchar *name = g_strdup_printf("%u", partition);
 	return find_config_slot_by_bootname(config, name);
@@ -170,7 +170,7 @@ RaucSlot *r_raspberrypi_get_primary(GError **error)
 		return NULL;
 	}
 
-	booted = raspberrypi_find_config_slot_by_boot_partition(r_context()->config, partition);
+	booted = raspberrypi_find_config_slot_by_bootloader_partition(r_context()->config, partition);
 	if (!booted) {
 		g_set_error(
 				error,
@@ -368,7 +368,7 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 		return FALSE;
 	}
 
-	booted = raspberrypi_find_config_slot_by_boot_partition(r_context()->config, partition);
+	booted = raspberrypi_find_config_slot_by_bootloader_partition(r_context()->config, partition);
 	if (!booted) {
 		g_set_error(
 				error,

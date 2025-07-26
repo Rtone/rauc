@@ -357,14 +357,11 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 	return TRUE;
 }
 
-/* We assume bootstate to be good if the slot is the booted slot or if the slot
- * is not the booted slot and the reboot flag is set; we assume bootstate to be
- * bad otherwise. */
+/* We assume bootstate to be good if the slot is the booted slot. */
 gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 {
 	RaucSlot *booted;
 	GError *ierror = NULL;
-	gboolean tryboot;
 
 	g_return_val_if_fail(slot, FALSE);
 	g_return_val_if_fail(good, FALSE);
@@ -379,15 +376,7 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 		return FALSE;
 	}
 
-	if (!raspberrypi_bootloader_get_tryboot(&tryboot, &ierror)) {
-		g_propagate_prefixed_error(
-				error,
-				ierror,
-				"Failed to get bootloader tryboot property: ");
-		return FALSE;
-	}
-
-	*good = (booted == slot || tryboot) ? TRUE : FALSE;
+	*good = (booted == slot) ? TRUE : FALSE;
 
 	return TRUE;
 }

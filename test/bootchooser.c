@@ -1165,10 +1165,17 @@ boot_partition=3\n\
 	g_assert_true(test_raspberrypi_autoboot_txt(fixture, "\
 [all]\n\
 tryboot_a_b=1\n\
+boot_partition=3\n\
+[tryboot]\n\
+boot_partition=2\n\
+"));
+	test_raspberrypi_initialize_autoboot_txt(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
 boot_partition=2\n\
 [tryboot]\n\
 boot_partition=3\n\
-"));
+");
 	g_assert_true(r_boot_set_state(firmware1, FALSE, NULL));
 	g_assert_true(test_raspberrypi_reboot_tag(fixture, "0"));
 	g_assert_true(test_raspberrypi_autoboot_txt(fixture, "\
@@ -1178,13 +1185,6 @@ boot_partition=2\n\
 [tryboot]\n\
 boot_partition=3\n\
 "));
-	test_raspberrypi_initialize_autoboot_txt(fixture, "\
-[all]\n\
-tryboot_a_b=1\n\
-boot_partition=2\n\
-[tryboot]\n\
-boot_partition=3\n\
-");
 
 	/* check firmware.0 and firmware.1 can be set to primary */
 	g_assert_true(r_boot_set_primary(firmware0, NULL));
@@ -1258,6 +1258,26 @@ boot_partition=2\n\
 [tryboot]\n\
 boot_partition=3\n\
 ");
+
+	/* check firmware.0 and firmware.1 can be set to bad */
+	g_assert_true(r_boot_set_state(firmware0, FALSE, NULL));
+	g_assert_true(test_raspberrypi_reboot_tag(fixture, "0"));
+	g_assert_true(test_raspberrypi_autoboot_txt(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
+	g_assert_true(r_boot_set_state(firmware1, FALSE, NULL));
+	g_assert_true(test_raspberrypi_reboot_tag(fixture, "0"));
+	g_assert_true(test_raspberrypi_autoboot_txt(fixture, "\
+[all]\n\
+tryboot_a_b=1\n\
+boot_partition=2\n\
+[tryboot]\n\
+boot_partition=3\n\
+"));
 
 	/* check firmware.0 and firmware.1 can be set to primary */
 	g_assert_true(r_boot_set_primary(firmware0, NULL));

@@ -382,10 +382,13 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 	return TRUE;
 }
 
-/* Set slot status values */
+/* We assume to set bootstate persistently if the slot is good and it is not
+ * the primary slot or if the slot is bad and it is the primary slot and it is
+ * not the booted slot */
 gboolean r_raspberrypi_set_state(RaucSlot *slot, gboolean good, GError **error)
 {
 	RaucSlot *primary;
+	RaucSlot *booted;
 	GError *ierror = NULL;
 
 	primary = r_raspberrypi_get_primary(&ierror);
@@ -405,6 +408,29 @@ gboolean r_raspberrypi_set_state(RaucSlot *slot, gboolean good, GError **error)
 					"Failed to set other persistent: ");
 			return FALSE;
 		}
+
+		return TRUE;
+	}
+
+	booted = raspberrypi_get_booted(&ierror);
+	if (!booted) {
+		g_propagate_prefixed_error(
+				error,
+				ierror,
+				"Failed to get booted slot: ");
+		return FALSE;
+	}
+
+	if (slot == primary && booted != primary && !good) {
+		if (!raspberrypi_set_other_persistent(primary, booted, &ierror)) {
+			g_propagate_prefixed_error(
+					error,
+					ierror,
+					"Failed to set other persistent: ");
+			return FALSE;
+		}
+
+		return TRUE;
 	}
 
 	return TRUE;

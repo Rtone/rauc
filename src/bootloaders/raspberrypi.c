@@ -125,6 +125,35 @@ static gboolean raspberrypi_tryboot_set(gboolean enable, GError **error)
 	return TRUE;
 }
 
+static RaucSlot *raspberrypi_get_booted(GError **error)
+{
+	RaucSlot *booted;
+	GError *ierror = NULL;
+	guint partition;
+
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+	if (!raspberrypi_bootloader_get_partition(&partition, &ierror)) {
+		g_propagate_prefixed_error(
+				error,
+				ierror,
+				"Failed to get bootloader partition property: ");
+		return NULL;
+	}
+
+	booted = raspberrypi_find_config_slot_by_bootloader_partition(r_context()->config, partition);
+	if (!booted) {
+		g_set_error(
+				error,
+				R_BOOTCHOOSER_ERROR,
+				R_BOOTCHOOSER_ERROR_PARSE_FAILED,
+				"No slot found with partition %i", partition);
+		return NULL;
+	}
+
+	return booted;
+}
+
 /* Get booted bootname */
 gchar *r_raspberrypi_get_bootname(RaucConfig *config, GError **error)
 {
@@ -150,15 +179,15 @@ RaucSlot *r_raspberrypi_get_primary(GError **error)
 	RaucSlot *booted;
 	GError *ierror = NULL;
 	gboolean tryboot;
-	guint partition;
 
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-	if (!raspberrypi_bootloader_get_partition(&partition, &ierror)) {
+	booted = raspberrypi_get_booted(&ierror);
+	if (!booted) {
 		g_propagate_prefixed_error(
 				error,
 				ierror,
-				"Failed to get bootloader partition property: ");
+				"Failed to get booted slot: ");
 		return NULL;
 	}
 
@@ -167,16 +196,6 @@ RaucSlot *r_raspberrypi_get_primary(GError **error)
 				error,
 				ierror,
 				"Failed to get bootloader tryboot property: ");
-		return NULL;
-	}
-
-	booted = raspberrypi_find_config_slot_by_bootloader_partition(r_context()->config, partition);
-	if (!booted) {
-		g_set_error(
-				error,
-				R_BOOTCHOOSER_ERROR,
-				R_BOOTCHOOSER_ERROR_PARSE_FAILED,
-				"No slot found with partition %i", partition);
 		return NULL;
 	}
 
@@ -346,17 +365,17 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 	RaucSlot *booted;
 	GError *ierror = NULL;
 	gboolean tryboot;
-	guint partition;
 
 	g_return_val_if_fail(slot, FALSE);
 	g_return_val_if_fail(good, FALSE);
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
-	if (!raspberrypi_bootloader_get_partition(&partition, &ierror)) {
+	booted = raspberrypi_get_booted(&ierror);
+	if (!booted) {
 		g_propagate_prefixed_error(
 				error,
 				ierror,
-				"Failed to get bootloader partition property: ");
+				"Failed to get booted slot: ");
 		return FALSE;
 	}
 
@@ -365,16 +384,6 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 				error,
 				ierror,
 				"Failed to get bootloader tryboot property: ");
-		return FALSE;
-	}
-
-	booted = raspberrypi_find_config_slot_by_bootloader_partition(r_context()->config, partition);
-	if (!booted) {
-		g_set_error(
-				error,
-				R_BOOTCHOOSER_ERROR,
-				R_BOOTCHOOSER_ERROR_PARSE_FAILED,
-				"No slot found with partition %i", partition);
 		return FALSE;
 	}
 

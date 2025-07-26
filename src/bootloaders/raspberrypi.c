@@ -300,7 +300,7 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 		g_propagate_prefixed_error(
 				error,
 				ierror,
-				"Failed to get primary: ");
+				"Failed to get primary slot: ");
 		return FALSE;
 	}
 
@@ -394,7 +394,7 @@ gboolean r_raspberrypi_set_state(RaucSlot *slot, gboolean good, GError **error)
 		g_propagate_prefixed_error(
 				error,
 				ierror,
-				"Failed to get primary: ");
+				"Failed to get primary slot: ");
 		return FALSE;
 	}
 

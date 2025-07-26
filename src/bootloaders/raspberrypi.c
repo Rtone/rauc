@@ -287,7 +287,7 @@ static gboolean raspberrypi_set_other_persistent(RaucSlot *primary, RaucSlot *ot
 }
 
 /* Set slot as primary boot slot, i.e. either persistently in the static file
- * autoboot.txt if it is the boot'ed slot or temporarily via the tryboot reboot
+ * autoboot.txt if it is the booted slot or temporarily via the tryboot reboot
  * flag otherwise. */
 gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 {

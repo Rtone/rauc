@@ -90,6 +90,71 @@ static gboolean raspberrypi_bootloader_get_tryboot(gboolean *tryboot, GError **e
 	return TRUE;
 }
 
+static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
+{
+	g_autoptr(GBytes) stdout_bytes = NULL;
+	g_autoptr(GSubprocess) sub = NULL;
+	g_autofree gchar *stdout_str = NULL;
+	GError *ierror = NULL;
+
+	g_return_val_if_fail(enabled, FALSE);
+	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+
+	/*
+	 * The tag Get Reboot Flags is undocumented.
+	 * https://github.com/raspberrypi/firmware/wiki/Mailbox-property-interface
+	 *
+	 * However, it is defined by the raspberrypi-linux firmware driver:
+	 * https://github.com/raspberrypi/linux/commit/e2726f05782135e15537575e95faea46c40a88a2
+	 */
+	sub = r_subprocess_new(G_SUBPROCESS_FLAGS_STDOUT_PIPE, &ierror, RASPBERRYPI_VCMAILBOX,
+			"0x00030064", "4", "0", "0", NULL);
+	if (!sub) {
+		g_propagate_prefixed_error(
+				error,
+				ierror,
+				"Failed to start " RASPBERRYPI_VCMAILBOX ": ");
+		return FALSE;
+	}
+
+	if (!g_subprocess_communicate(sub, NULL, NULL, &stdout_bytes, NULL, &ierror)) {
+		g_propagate_prefixed_error(
+				error,
+				ierror,
+				"Failed to run " RASPBERRYPI_VCMAILBOX ": ");
+		return FALSE;
+	}
+
+	/*
+	 * Parse output.
+	 *
+	 * If the reboot flag is unset:
+	 *
+	 * 	$ vcmailbox 0x00030064
+	 * 	0x0000001c 0x80000000 0x00030064 0x00000004 0x80000004 0x00000000 0x00000000
+	 *
+	 * If the reboot flag is set:
+	 *
+	 * 	$ vcmailbox 0x00030064
+	 * 	0x0000001c 0x80000000 0x00030064 0x00000004 0x80000004 0x00000001 0x00000000
+	 */
+	stdout_str = r_bytes_unref_to_string(&stdout_bytes);
+	if (stdout_str) {
+		g_auto(GStrv) words = g_strsplit(stdout_str, " ", -1);
+		if (g_strv_length(words) == 7) {
+    			guint32 value = (guint32)g_ascii_strtoull(words[5], NULL, 0);
+			*enabled = value == 0 ? FALSE : TRUE;
+    			return TRUE;
+		}
+	}
+
+	g_propagate_prefixed_error(
+			error,
+			ierror,
+			"Failed to parse " RASPBERRYPI_VCMAILBOX ": ");
+	return FALSE;
+}
+
 static gboolean raspberrypi_tryboot_set(gboolean enable, GError **error)
 {
 	g_autoptr(GSubprocess) sub = NULL;

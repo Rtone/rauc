@@ -2208,3 +2208,30 @@ EFI
   targets etc. It may also depend on the actual implementation if EFI variable
   writing is atomic or not.
   Thus make sure your EFI works as expected and required.
+
+Raspberry Pi
+~~~~~~~~~~~~
+
+:state bad:
+  Removes the slot from `BootOrder`
+  Do nothing to avoid to .
+
+:state good:
+  Prepends the slot to the `BootOrder` list.
+  This behaves slightly different than the other implementations because we use
+  `BootNext` for allowing setting primary with an initial fallback option.
+  Setting state good is then used to persist this.
+
+:primary:
+  Sets the slot as `BootNext` by default.
+  This will make the slot being booted upon next reboot only!
+
+  The behavior is different when ``efi-use-bootnext`` is set to ``false``.
+  Then this prepends the slot to the `BootOrder` list as described for 'state
+  good'.
+
+.. note:: EFI implementations differ in how they handle new or unbootable
+  targets etc. It may also depend on the actual implementation if EFI variable
+  writing is atomic or not.
+  Thus make sure your EFI works as expected and required.
+

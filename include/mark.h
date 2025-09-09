@@ -43,6 +43,18 @@ G_GNUC_WARN_UNUSED_RESULT;
 gboolean r_mark_bad(RaucSlot *slot, GError **error)
 G_GNUC_WARN_UNUSED_RESULT;
 
+/**
+ * TODO: Mark a bootname slot.
+ *
+ * This means it is considered broken after an update.
+ *
+ * @param state Slot to mark as bad
+ * @param slot_identifier Slot identifier
+ * @param slot_name Return slot name
+ * @param error Return location for a GError
+ *
+ * @return Return TRUE on success and FALSE on error
+ */
 gboolean mark_run(const gchar *state,
 		const gchar *slot_identifier,
 		gchar **slot_name,

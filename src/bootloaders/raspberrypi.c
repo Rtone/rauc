@@ -380,6 +380,7 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 	GError *ierror = NULL;
 	gboolean tryboot;
 
+	fprintf(stderr, "%s(slot: %s, ...)\n", __func__, slot->name);
 	primary = r_raspberrypi_get_primary(&ierror);
 	if (!primary) {
 		g_propagate_prefixed_error(
@@ -389,6 +390,8 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 		return FALSE;
 	}
 
+	fprintf(stderr, "slot:    %s\n", slot->name);
+	fprintf(stderr, "primary: %s\n", primary->name);
 	if (slot == primary)
 		return TRUE;
 
@@ -400,6 +403,7 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 		return FALSE;
 	}
 
+	fprintf(stderr, "tryboot: %i\n", tryboot);
 	if (!tryboot) {
 		if (!raspberrypi_set_other_temporary(&ierror)) {
 			g_propagate_prefixed_error(
@@ -433,6 +437,7 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 	g_return_val_if_fail(good, FALSE);
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
+	fprintf(stderr, "%s(slot: %s, good: %p, ...)\n", __func__, slot->name, good);
 	booted = raspberrypi_get_booted(&ierror);
 	if (!booted) {
 		g_propagate_prefixed_error(
@@ -443,6 +448,20 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 	}
 
 	*good = (booted == slot) ? TRUE : FALSE;
+	fprintf(stderr, "slot:    %s\n", slot->name);
+	fprintf(stderr, "booted:  %s\n", booted->name);
+	fprintf(stderr, "*good:   %i\n", *good);
+
+	fprintf(stderr, "--- >8 ---\n");
+	if (TRUE) {
+		gboolean tryboot = FALSE;
+		if (!raspberrypi_tryboot_get(&tryboot, &ierror)) {
+			g_warning("Failed to get tryboot: %s", ierror->message);
+			g_clear_error(&ierror);
+		}
+		fprintf(stderr, "tryboot: %i\n", tryboot);
+	}
+	fprintf(stderr, "--- >8 ---\n");
 
 	return TRUE;
 }
@@ -456,6 +475,7 @@ gboolean r_raspberrypi_set_state(RaucSlot *slot, gboolean good, GError **error)
 	RaucSlot *booted;
 	GError *ierror = NULL;
 
+	fprintf(stderr, "%s(slot: %s, good: %i, ...)\n", __func__, slot->name, good);
 	primary = r_raspberrypi_get_primary(&ierror);
 	if (!primary) {
 		g_propagate_prefixed_error(

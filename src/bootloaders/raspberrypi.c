@@ -112,6 +112,7 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	 */
 	sub = r_subprocess_new(G_SUBPROCESS_FLAGS_STDOUT_PIPE, &ierror, RASPBERRYPI_VCMAILBOX,
 			"0x00030064", "4", "0", "0", NULL);
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	if (!sub) {
 		g_propagate_prefixed_error(
 				error,
@@ -120,6 +121,7 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 		return FALSE;
 	}
 
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	if (!g_subprocess_communicate(sub, NULL, NULL, &stdout_bytes, NULL, &ierror)) {
 		g_propagate_prefixed_error(
 				error,
@@ -142,8 +144,10 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	 * 	0x0000001c 0x80000000 0x00030064 0x00000004 0x80000004 0x00000001 0x00000000
 	 */
 	stdout_str = r_bytes_unref_to_string(&stdout_bytes);
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	if (stdout_str) {
 		g_auto(GStrv) words = g_strsplit(stdout_str, " ", -1);
+		fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 		if (g_strv_length(words) == 7) {
     			guint32 value = (guint32)g_ascii_strtoull(words[5], NULL, 0);
 			*enabled = value == 0 ? FALSE : TRUE;
@@ -151,10 +155,12 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 		}
 	}
 
-	g_propagate_prefixed_error(
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
+	g_set_error(
 			error,
-			ierror,
-			"Failed to parse " RASPBERRYPI_VCMAILBOX ": ");
+			R_BOOTCHOOSER_ERROR,
+			R_BOOTCHOOSER_ERROR_PARSE_FAILED,
+			"Failed to parse " RASPBERRYPI_VCMAILBOX ": %s", stdout_str);
 	return FALSE;
 }
 

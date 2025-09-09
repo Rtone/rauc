@@ -171,7 +171,7 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	return FALSE;
 }
 
-static gboolean raspberrypi_tryboot_set(gboolean enable, GError **error)
+static gboolean raspberrypi_set_reboot_flag(gboolean enable, GError **error)
 {
 	g_autoptr(GSubprocess) sub = NULL;
 	GError *ierror = NULL;
@@ -312,7 +312,7 @@ static gboolean raspberrypi_set_other_temporary(GError **error)
 {
 	GError *ierror = NULL;
 
-	if (!raspberrypi_tryboot_set(TRUE, error)) {
+	if (!raspberrypi_set_reboot_flag(TRUE, error)) {
 		g_propagate_prefixed_error(
 				error,
 				ierror,

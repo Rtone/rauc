@@ -90,18 +90,15 @@ static gboolean raspberrypi_bootloader_get_tryboot(gboolean *tryboot, GError **e
 	return TRUE;
 }
 
-static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
+static gboolean raspberrypi_get_reboot_flag(gboolean *enabled, GError **error)
 {
 	g_autoptr(GBytes) stdout_bytes = NULL;
 	g_autoptr(GSubprocess) sub = NULL;
 	g_autofree gchar *stdout_str = NULL;
 	GError *ierror = NULL;
 
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	g_return_val_if_fail(enabled, FALSE);
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 
 	/*
 	 * The tag Get Reboot Flags is undocumented.
@@ -112,7 +109,6 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	 */
 	sub = r_subprocess_new(G_SUBPROCESS_FLAGS_STDOUT_PIPE, &ierror, RASPBERRYPI_VCMAILBOX,
 			"0x00030064", "4", "0", "0", NULL);
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	if (!sub) {
 		g_propagate_prefixed_error(
 				error,
@@ -121,7 +117,6 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 		return FALSE;
 	}
 
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	if (!g_subprocess_communicate(sub, NULL, NULL, &stdout_bytes, NULL, &ierror)) {
 		g_propagate_prefixed_error(
 				error,
@@ -135,34 +130,26 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	 *
 	 * If the reboot flag is unset:
 	 *
-	 * 	$ vcmailbox 0x00030064
+	 * 	$ vcmailbox 0x00030064 4 0 0
 	 * 	0x0000001c 0x80000000 0x00030064 0x00000004 0x80000004 0x00000000 0x00000000
 	 *
 	 * If the reboot flag is set:
 	 *
-	 * 	$ vcmailbox 0x00030064
+	 * 	$ vcmailbox 0x00030064 4 0 0
 	 * 	0x0000001c 0x80000000 0x00030064 0x00000004 0x80000004 0x00000001 0x00000000
 	 */
 	stdout_str = r_bytes_unref_to_string(&stdout_bytes);
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	if (stdout_str) {
 		g_auto(GStrv) words = g_strsplit(stdout_str, " ", -1);
-		fprintf(stderr, "%s:%u\n", __func__, __LINE__);
-		fprintf(stderr, "words: %p\n", __func__, __LINE__, words);
-		fprintf(stderr, "%s:%u\n", __func__, __LINE__);
-		fprintf(stderr, "g_strv_length(words): %i\n", __func__, __LINE__, g_strv_length(words));
+		fprintf(stderr, "words: %p\n", words);
+		fprintf(stderr, "g_strv_length(words): %u\n", g_strv_length(words));
 		if (g_strv_length(words) > 5) {
     			guint32 value = (guint32)g_ascii_strtoull(words[5], NULL, 0);
-			fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 			*enabled = value == 0 ? FALSE : TRUE;
     			return TRUE;
-		} else {
-			fprintf(stderr, "%s:%u\n", __func__, __LINE__);
-			fprintf(stderr, "g_strv_length(words): %i\n", __func__, __LINE__, g_strv_length(words));
 		}
 	}
 
-	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	g_set_error(
 			error,
 			R_BOOTCHOOSER_ERROR,
@@ -252,7 +239,7 @@ gchar *r_raspberrypi_get_bootname(RaucConfig *config, GError **error)
 	return g_strdup_printf("%u", partition);
 }
 
-/* Get slot marked as primary one, i.e. the slot with boot_partition set in the
+/* REWORD: Get slot marked as primary one, i.e. the slot with boot_partition set in the
  * section [all] in the file autoboot.txt */
 RaucSlot *r_raspberrypi_get_primary(GError **error)
 {
@@ -260,6 +247,7 @@ RaucSlot *r_raspberrypi_get_primary(GError **error)
 	RaucSlot *booted;
 	GError *ierror = NULL;
 	gboolean tryboot;
+	gboolean reboot;
 
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
 
@@ -280,7 +268,15 @@ RaucSlot *r_raspberrypi_get_primary(GError **error)
 		return NULL;
 	}
 
-	if (!tryboot)
+	if (!raspberrypi_get_reboot_flag(&reboot, error)) {
+		g_propagate_prefixed_error(
+				error,
+				ierror,
+				"Failed to get reboot: ");
+		return NULL;
+	}
+
+	if ((!tryboot && !reboot) || (tryboot && reboot))
 		return booted;
 
 	slots = g_hash_table_get_values(r_context()->config->slots);
@@ -446,6 +442,7 @@ gboolean r_raspberrypi_set_primary(RaucSlot *slot, GError **error)
 /* We assume bootstate to be good if the slot is the booted slot. */
 gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 {
+	gboolean reboot = FALSE;
 	RaucSlot *booted;
 	GError *ierror = NULL;
 
@@ -464,19 +461,15 @@ gboolean r_raspberrypi_get_state(RaucSlot *slot, gboolean *good, GError **error)
 	}
 
 	*good = (booted == slot) ? TRUE : FALSE;
+	fprintf(stderr, "--- >8 ---\n");
 	fprintf(stderr, "slot:    %s\n", slot->name);
 	fprintf(stderr, "booted:  %s\n", booted->name);
 	fprintf(stderr, "*good:   %i\n", *good);
-
-	fprintf(stderr, "--- >8 ---\n");
-	if (TRUE) {
-		gboolean tryboot = FALSE;
-		if (!raspberrypi_tryboot_get(&tryboot, &ierror)) {
-			g_warning("Failed to get tryboot: %s", ierror->message);
-			g_clear_error(&ierror);
-		}
-		fprintf(stderr, "tryboot: %i\n", tryboot);
+	if (!raspberrypi_get_reboot_flag(&reboot, &ierror)) {
+		g_warning("Failed to get reboot: %s", ierror->message);
+		g_clear_error(&ierror);
 	}
+	fprintf(stderr, "reboot: %i\n", reboot);
 	fprintf(stderr, "--- >8 ---\n");
 
 	return TRUE;

@@ -148,10 +148,17 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	if (stdout_str) {
 		g_auto(GStrv) words = g_strsplit(stdout_str, " ", -1);
 		fprintf(stderr, "%s:%u\n", __func__, __LINE__);
-		if (g_strv_length(words) == 7) {
+		fprintf(stderr, "words: %p\n", __func__, __LINE__, words);
+		fprintf(stderr, "%s:%u\n", __func__, __LINE__);
+		fprintf(stderr, "g_strv_length(words): %i\n", __func__, __LINE__, g_strv_length(words));
+		if (g_strv_length(words) > 5) {
     			guint32 value = (guint32)g_ascii_strtoull(words[5], NULL, 0);
+			fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 			*enabled = value == 0 ? FALSE : TRUE;
     			return TRUE;
+		} else {
+			fprintf(stderr, "%s:%u\n", __func__, __LINE__);
+			fprintf(stderr, "g_strv_length(words): %i\n", __func__, __LINE__, g_strv_length(words));
 		}
 	}
 

@@ -97,8 +97,11 @@ static gboolean raspberrypi_tryboot_get(gboolean *enabled, GError **error)
 	g_autofree gchar *stdout_str = NULL;
 	GError *ierror = NULL;
 
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	g_return_val_if_fail(enabled, FALSE);
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 	g_return_val_if_fail(error == NULL || *error == NULL, FALSE);
+	fprintf(stderr, "%s:%u\n", __func__, __LINE__);
 
 	/*
 	 * The tag Get Reboot Flags is undocumented.
